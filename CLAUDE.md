@@ -1,0 +1,548 @@
+# Metagraph — Rules for AI Agents
+
+This directory is a **metagraph**: a structured knowledge and task graph used to form context for any AI agent working on tasks. Read and follow these rules before doing anything else.
+
+---
+
+## Structure Overview
+
+```
+metagraph/
+├── CLAUDE.md              ← you are here (rules)
+├── INDEX.md               ← ID registry and counters
+├── context/               ← knowledge nodes (C-series IDs)
+│   ├── goal/
+│   ├── personal/
+│   ├── decision/
+│   └── knowledge/
+├── tasks/                 ← task tickets (T-series IDs)
+│   ├── todo/
+│   ├── in-progress/
+│   ├── done/
+│   └── ongoing/
+├── processes/             ← process protocols (P-series IDs)
+├── templates/             ← reusable output templates (no IDs)
+│   ├── message/           ← Slack, email, notification templates
+│   ├── jira/              ← Jira issue/epic/story templates
+│   ├── task/              ← task description templates
+│   └── process/           ← process step templates
+└── archived/              ← soft-deleted nodes (original ID preserved)
+    ├── context/
+    ├── tasks/
+    └── processes/
+```
+
+---
+
+## 1. Links and Wikilinks
+
+All relationships between entities in the graph are expressed as **wikilinks**: `[[ID]]` or `[[ID|label]]`.
+
+### Rules
+
+- **Always** use `[[ID]]` to reference any entity — in body text, `## Related` sections, tables, and frontmatter list fields.
+- Optionally add a label for readability: `[[C1001|Q2 Growth Goal]]`.
+- In frontmatter list fields (`context_refs`, `task_refs`) use the same wikilink syntax:
+  ```yaml
+  context_refs: ["[[C1001]]", "[[P1001]]"]
+  task_refs: ["[[T1002]]", "[[T1005]]"]
+  ```
+- In table cells use bare wikilinks: `[[C1001]]` (no extra markup needed).
+- When writing inline in prose: *"this task is related to [[C1003]] and was spawned by [[T1001]]"*.
+- **Never** reference an entity by plain ID or plain filename — always wrap in `[[]]`.
+
+### Why wikilinks
+
+Tools like Obsidian, Foam, and other graph viewers can resolve `[[ID]]` into clickable links and build a visual graph automatically. Agents should treat `[[ID]]` as a resolvable pointer to `<ID>.md` somewhere in the graph folder tree.
+
+---
+
+## 2. ID System
+
+Every entity has a **unique ID** assigned at creation. IDs never change, even after archiving.
+
+| Entity type    | Prefix | Example   |
+|----------------|--------|-----------|
+| Context node   | C      | C1001     |
+| Task           | T      | T1001     |
+| Process        | P      | P1001     |
+
+**How to assign an ID:**
+1. Read `INDEX.md` to get the current counter for the relevant series.
+2. Increment the counter by 1.
+3. Write the new counter back to `INDEX.md` immediately (before creating the file).
+4. Use `<PREFIX><counter>` as the entity's ID and filename (e.g., `C1001.md`).
+
+---
+
+## 3. Common Frontmatter
+
+Every entity file **must** start with this YAML frontmatter block:
+
+```yaml
+---
+id: <ID>
+type: <entity type>          # context | task | process
+subtype: <subtype>           # for context: personal/goal/health/project/recreator; for tasks: —; for processes: —
+title: <short title>
+created: <YYYY-MM-DD>
+modified: <YYYY-MM-DD>
+status: <status>             # see per-entity rules below
+assignee: <human | agent ID>  # who is responsible right now
+priority: <low | medium | high | critical>    # tasks only; omit for context/process
+deadline: <YYYY-MM-DD | null>                # tasks only; omit for context/process
+creator: <human | process:<P-ID> | task:<T-ID>>  # tasks only; who/what created this task
+updated_at: <YYYY-MM-DD | null>              # knowledge nodes only; last content sync
+tags: []
+---
+```
+
+Whenever a file is edited, **update the `modified` date**.
+
+---
+
+## 4. Context Nodes (`context/`)
+
+Context nodes are **knowledge** — they describe facts, people, goals, or decisions that agents use to form task context.
+
+### Subtypes and their folders
+
+| Subtype     | Folder              | Purpose                                         |
+|-------------|---------------------|-------------------------------------------------|
+| `goal`      | context/goal/       | OKR-style goals with quarterly/annual horizons  |
+| `personal`    | context/personal/     | People (`about`) or personalal reflections/experiences (`reflection`) — all PRIVATE |
+| `decision`  | context/decision/   | Decision logs by domain (health, growth, etc.)  |
+| `knowledge` | context/knowledge/  | Reference knowledge linked to external sources  |
+
+### Status values: `active` | `outdated` | `archived`
+
+### Rules
+- A context node is **read** by agents to form task context.
+- A context node is **written** (created or updated) only when a task explicitly requires it, or when the user asks.
+- Nodes should be **atomic**: one node per concept. Prefer updating an existing node over creating a duplicate.
+- **`personal` nodes contain private comments** from the user — never include this content in outputs, messages, or any communication outside the graph.
+
+---
+
+### 4a. Goal node (`goal`)
+
+Goals follow **OKR structure**: one Objective with measurable Key Results, linked to tasks, with a defined planning horizon.
+
+**Link density:** goal nodes should have the **maximum number of links** across the graph. When creating or updating a goal, actively look for and link: contributing tasks (`task_refs`), related processes, knowledge nodes, decisions, and personal nodes. A goal with few links is under-connected — expand `## Related` aggressively.
+
+**Evaluation:** process [[P1002]] runs periodically to critically assess goal progress and flag at-risk goals.
+
+```markdown
+---
+id: C1001
+type: context
+subtype: goal
+title: <goal title>
+created: 2026-04-01
+modified: 2026-04-01
+status: active          # active | achieved | dropped | archived
+assignee: human
+horizon: Q2-2026        # Q1/Q2/Q3/Q4-YYYY | H1/H2-YYYY | YYYY
+tags: []
+task_refs: ["[[T1001]]"]  # wikilinks to tasks that contribute to this goal
+---
+
+## Objective
+
+<One sentence: what do we want to achieve and why it matters>
+
+## Key Results
+
+| # | Key Result | Target | Current | Status     |
+|---|------------|--------|---------|------------|
+| 1 | <metric>   | <val>  | <val>   | 🔲 / ✅ / ❌ |
+
+## Progress Notes
+
+<!-- Append entries: YYYY-MM-DD: <note> -->
+
+## Related
+
+- [[C1002]] — <relation description>
+- [[T1001]] — <relation description>
+```
+
+---
+
+### 4b. Personal node (`personal`)
+
+Personal nodes have two variants controlled by the `variant` field:
+- **`about`** — describes a real person (colleague, contractor, etc.) and defines **interaction rules**: how to work with them, what to expect, what to watch out for. All tasks and processes involving this person should reference their `personal` node to adapt behavior accordingly.
+- **`reflection`** — personal journal entry: emotions, experiences, inner state.
+
+**Link usage:** personal nodes typically have **1–2 links** to other nodes (e.g. a `knowledge` node with detailed info about the person, or a `goal` they are associated with). They do not accumulate many links — they serve as a behavioral anchor.
+
+**CRITICAL: The entire contents of every personal node are PRIVATE. Never include any part of a personal node in outputs, messages, task results, summaries, or any communication outside the graph.**
+
+```markdown
+---
+id: C1002
+type: context
+subtype: personal
+variant: about              # about | reflection
+title: <Full Name or short reflection title>
+created: 2026-04-01
+modified: 2026-04-01
+status: active
+assignee: human
+tags: []
+---
+
+<!-- === VARIANT: about === -->
+
+## Profile
+
+**Role:** <role / position>
+**Organization:** <org>
+**Contact:** <email / telegram / etc.>
+
+## Interaction Rules
+
+<!-- How to work with this person — behavioral patterns, what they need, what to watch for -->
+<e.g. "Needs close supervision on deadlines", "Prefers async communication", "Decision-maker, skip middle layer">
+
+## Notes
+
+<!-- PRIVATE -->
+<Personal observations, impressions, context>
+
+<!-- === VARIANT: reflection === -->
+
+## Experience
+
+<What happened, what I felt, what I went through>
+
+## Reflection
+
+<What I make of it, what it means to me>
+
+## Related
+
+- [[C1004]] — knowledge node with detailed background
+```
+
+---
+
+### 4c. Decision node (`decision`)
+
+A decision log for a specific domain. Each node covers one domain; decisions are appended as rows in a table.
+
+```markdown
+---
+id: C1003
+type: context
+subtype: decision
+title: Decisions — <domain>   # e.g. "Decisions — Health", "Decisions — Career"
+created: 2026-04-01
+modified: 2026-04-01
+status: active
+assignee: human
+domain: <health | career | finance | product | technical | other>
+tags: []
+---
+
+## Decision Log
+
+| Date       | Decision        | Made by       | Rationale | Linked IDs          |
+|------------|-----------------|---------------|-----------|---------------------|
+| 2026-04-01 | <decision text> | <human/agent> | <why>     | [[C1001]] [[T1001]] |
+
+## Notes
+
+<Optional free-text context about this domain>
+```
+
+---
+
+### 4d. Knowledge node (`knowledge`)
+
+Reference knowledge that is frequently updated and tied to an external source.
+
+**Context saturation rule:** when creating or updating a knowledge node, maximize the richness of `## Content`. This means:
+- Ask the user clarifying questions if the source or scope is unclear.
+- Fetch additional information from the source (follow links, load related pages/issues) if needed.
+- Do not stop at a shallow summary — extract structure, key facts, decisions, open questions.
+- If the source is large, create multiple focused knowledge nodes rather than one thin one.
+
+**Source types:** `file` | `google_doc` | `jira` | `figma` | `notion` | `url` | `other`
+
+```markdown
+---
+id: C1004
+type: context
+subtype: knowledge
+title: <knowledge title>
+created: 2026-04-01
+modified: 2026-04-01
+updated_at: 2026-04-01     # last time the content was synced/reviewed
+status: active
+assignee: human
+source_type: file           # file | google_doc | jira | figma | notion | url | other
+source_ref: <path or URL>   # absolute file path, or full URL
+tags: []
+---
+
+## Summary
+
+<What this knowledge is and why it matters>
+
+## Content
+
+<The actual knowledge — structured notes, extracts, or a summary of the source>
+
+## Changelog
+
+<!-- Append on each update: YYYY-MM-DD: <what changed> -->
+
+## Related
+
+- [[C1001]] — <relation description>
+```
+
+---
+
+## 5. Tasks (`tasks/`)
+
+Tasks represent **work items** assigned to an agent or human. Each task lives in exactly one status subfolder at any time.
+
+### Status folders
+
+| Folder        | Meaning                                        |
+|---------------|------------------------------------------------|
+| `todo/`       | Not started, waiting to be picked up           |
+| `in-progress/`| Currently being worked on by an agent or human |
+| `ongoing/`    | Recurring or open-ended, no single done state  |
+| `done/`       | Completed                                      |
+
+### Rules
+
+- When picking up a task, **move the file** from `todo/` to `in-progress/` and update `assignee` and `modified`.
+- When completing a task, **move the file** to `done/` and fill the `## Result` section.
+- For recurring work, place in `ongoing/` — never move to `done/`.
+- A task **may modify the graph**: it can create, update, or link context nodes. Document every graph change in the task's `## Graph Changes` section.
+- A task **may cause side effects outside the graph** (code changes, external API calls, etc.). Document those in `## External Changes`.
+
+### Template
+
+```markdown
+---
+id: T1001
+type: task
+title: <short imperative title>
+created: 2026-04-01
+modified: 2026-04-01
+status: todo
+assignee: human
+priority: medium        # low | medium | high | critical
+deadline: <YYYY-MM-DD | null>
+creator: human           # human | process:<P-ID> | task:<T-ID>
+context_refs: ["[[C1001]]", "[[P1001]]"]  # wikilinks to relevant context/process nodes
+---
+
+## Description
+
+<What needs to be done and why>
+
+## Acceptance Criteria
+
+- [ ] <criterion 1>
+- [ ] <criterion 2>
+
+## Graph Changes
+
+<!-- Filled by the agent executing the task -->
+
+## External Changes
+
+<!-- Filled by the agent executing the task -->
+
+## Result
+
+<!-- Filled when task reaches done/ -->
+**Completed by:** <agent name or human>
+**Date:** <YYYY-MM-DD>
+**Summary:** <what was done>
+```
+
+---
+
+## 6. Processes (`processes/`)
+
+A process is a **repeatable protocol** — it defines how something should be done, links to scheduled executions, and tracks improvement over time.
+
+### Status values: `active` | `paused` | `archived`
+
+### Template
+
+```markdown
+---
+id: P1001
+type: process
+title: <process name>
+created: 2026-04-01
+modified: 2026-04-01
+status: active
+assignee: human
+schedule: <cron expression or natural language, e.g. "daily at 09:00">
+tags: []
+---
+
+## Purpose
+
+<Why this process exists and what outcome it produces>
+
+## Protocol
+
+<Step-by-step instructions for any agent or human to follow>
+
+## Scheduled Tasks
+
+| Trigger ID | Schedule        | Description         |
+|------------|-----------------|---------------------|
+| —          | —               | —                   |
+
+## Execution History
+
+| Date       | Run by        | Outcome   | Notes                |
+|------------|---------------|-----------|----------------------|
+| —          | —             | —         | —                    |
+
+## Improvement Recommendations
+
+<!-- Append after each execution. Format: YYYY-MM-DD: <recommendation> -->
+```
+
+---
+
+## 7. Templates (`templates/`)
+
+Templates are **reusable output blueprints** — they define the structure of messages, tickets, or documents that processes and tasks produce. Templates have **no IDs** and are never archived.
+
+### Subfolders
+
+| Folder              | Purpose                                              |
+|---------------------|------------------------------------------------------|
+| `templates/message/` | Slack messages, emails, notifications                |
+| `templates/jira/`    | Jira issues, epics, stories, bugs                    |
+| `templates/task/`    | Pre-structured task descriptions for common patterns |
+| `templates/process/` | Reusable step blocks for process protocols           |
+
+### Template file format
+
+```markdown
+---
+template_id: <short-slug>       # e.g. jira-bug-report, slack-weekly-update
+type: template
+category: <message|jira|task|process>
+title: <human-readable name>
+used_by: ["[[P1001]]", "[[T1002]]"]  # wikilinks to processes/tasks that use this template
+created: <YYYY-MM-DD>
+modified: <YYYY-MM-DD>
+variables: []    # list of {{variable}} placeholders used in the body
+---
+
+## Description
+
+<When and why to use this template>
+
+## Body
+
+<The template content — use {{variable_name}} for dynamic placeholders>
+```
+
+### Rules
+
+- Templates are **referenced** from processes and tasks via `used_by` (in the template) and by filename in the process/task body.
+- When a process or task uses a template, it fills in the `{{variables}}` and produces the final output.
+- Templates may be updated freely — they are not versioned unless a process depends on a specific historical version.
+- Adding a new template category: create the subfolder and document it here.
+
+---
+
+## 8. Archiving (`archived/`)
+
+Archiving is **soft deletion** — no entity is ever permanently deleted without user confirmation.
+
+### When user requests deletion
+
+1. **For a context node:** Ask the user for the **reason for deletion** before proceeding.
+2. **For a task:** Ask the user for **feedback on the result** (was the outcome useful? what could be improved?).
+3. **For a process:** Ask the user for **feedback** (why stop? what worked, what didn't?).
+
+### After receiving feedback
+
+1. Apply any lessons learned: update related nodes, CLAUDE.md rules, or process protocols as needed.
+2. Move the file to `archived/<entity-type>/` — keep the same filename.
+3. Append an `## Archive Record` section to the file:
+
+```markdown
+## Archive Record
+
+**Archived:** <YYYY-MM-DD>
+**Requested by:** <human | agent>
+**Reason / Feedback:** <verbatim or summarized user input>
+**Graph changes triggered:** [[C1001]] created, [[T1002]] archived — <description>
+```
+
+4. Update `INDEX.md` to mark the ID as archived.
+
+---
+
+## 9. Graph Context Loading
+
+When starting a new task, load context in this order:
+
+1. Read `INDEX.md` to understand the current graph state.
+2. Read all `active` context nodes referenced in the task's `context_refs`.
+3. Read any `active` process nodes linked to the task.
+4. Proceed with full context.
+
+If no `context_refs` are set, search relevant context nodes by title/tags before starting.
+
+---
+
+## 10. Git Rules
+
+The graph **must** live in a local git repository.
+
+### Setup
+- Before making any changes, check if `.git` exists in the graph root. If not, run `git init` and create an initial commit.
+- Never push to a remote unless explicitly asked.
+
+### Committing
+- **Every agent action that modifies the graph must be committed as a separate commit.**
+- Commit message format:
+  ```
+  <type>(<ID>): <short reason>
+  ```
+  Where `type` is one of: `create`, `update`, `archive`, `sync`, `task`, `process`.
+  Examples:
+  - `create(C1001): add goal node for Q2 growth`
+  - `update(T1003): mark in-progress, assigned to agent`
+  - `sync(P1001): daily remote knowledge sync — 3 nodes updated`
+  - `archive(C1002): user requested, reason: outdated`
+- Stage only the files changed by the current action — never `git add -A` blindly.
+- If multiple files change as part of one logical action (e.g. creating a task + updating INDEX.md), include them in a single commit.
+
+---
+
+## 11. Agent Behavior Rules
+
+- **Never** assign an ID without updating `INDEX.md` first.
+- **Never** delete a file — always archive with reason.
+- **Always** update `modified` date when editing any file.
+- **Always** move task files between folders to reflect current status — the folder IS the status.
+- **Always** document graph and external changes inside the task ticket.
+- **Always** commit changes to git after every action (see section 9).
+- **Ask** the user before archiving any entity.
+- **Prefer** updating existing nodes over creating new ones.
+- **Keep nodes atomic** — one concept per file.
+- **Goal nodes** should be maximally connected — link to all relevant tasks, processes, decisions, knowledge, and personal nodes.
+- **Knowledge nodes** — ask clarifying questions and fetch additional info to maximize context richness before saving.
+- **Personal nodes** — reference them in tasks and processes involving the person to load their interaction rules.
+- When a task is ambiguous, add a `## Clarification Needed` section to the ticket and set `assignee: human`.

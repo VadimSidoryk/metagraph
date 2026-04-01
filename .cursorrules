@@ -1,0 +1,72 @@
+# Metagraph Rules for Cursor
+
+This project is a metagraph — a structured knowledge and task graph.
+Full rules are defined in CLAUDE.md. This file provides the same rules for Cursor agents.
+
+---
+
+## Quick Reference
+
+### Folders
+- `context/goal/` — OKR goals (horizon: quarter/half-year/year), linked to tasks
+- `context/personal/` — people (`variant: about`) or personalal reflections (`variant: reflection`); entire node is PRIVATE, never leak outside graph
+- `context/decision/` — decision log tables per domain (health, career, finance…)
+- `context/knowledge/` — reference knowledge with external source (file/google_doc/jira/figma/notion/url)
+- `tasks/todo|in-progress|done|ongoing/` — task tickets (IDs: T1001, …)
+- `processes/` — process protocols (IDs: P1001, …)
+- `archived/` — soft-deleted entities (original IDs preserved)
+- `templates/message|jira|task|process/` — reusable output blueprints (no IDs); referenced from processes and tasks via `used_by` wikilinks
+
+### Before doing anything
+1. Read `CLAUDE.md` for full rules.
+2. Read `INDEX.md` for current graph state and ID counters.
+3. Load relevant context nodes from `context_refs` in the task.
+
+### ID assignment
+- Read `INDEX.md`, increment the counter, write it back FIRST, then create the file.
+- Never reuse or skip IDs.
+
+### Task lifecycle (move the file, don't copy)
+```
+todo/ → in-progress/ → done/
+                     → ongoing/  (recurring tasks stay here)
+```
+
+### Required frontmatter fields (all files)
+```yaml
+id, type, title, created, modified, status, assignee
+```
+
+### Required frontmatter fields (tasks only)
+```yaml
+priority: low | medium | high | critical
+deadline: YYYY-MM-DD | null
+creator: human | process:<P-ID> | task:<T-ID>
+```
+
+### Extra frontmatter fields by context subtype
+```yaml
+# goal:      horizon: Q2-2026 | H1-2026 | 2026 — task_refs: [T-IDs]
+# decision:  domain: health | career | finance | product | technical | other
+# knowledge: source_type: file|google_doc|jira|figma|notion|url|other — source_ref: <path/URL> — updated_at: YYYY-MM-DD
+# personal:    (standard fields only — Private Notes section is PRIVATE)
+```
+Always update `modified` when editing.
+
+### Archiving (never hard-delete)
+- Always ask the user for reason/feedback before archiving.
+- Move to `archived/<type>/`, append `## Archive Record` section.
+- Update `INDEX.md` archived table.
+
+### Links — always use wikilinks
+- Reference any entity as `[[ID]]` or `[[ID|label]]` — in body text, `## Related`, tables, and frontmatter lists.
+- Frontmatter example: `context_refs: ["[[C1001]]", "[[P1001]]"]`
+- Never use plain IDs or filenames as references.
+
+### Git — every agent action = one commit
+- Check for `.git` on first run; if missing, `git init` and initial commit.
+- Commit format: `<type>(<ID>): <short reason>` — e.g. `create(C1001): add Q2 goal node`
+- Stage only files changed by the current action.
+- Never push unless explicitly asked.
+
+### Full rules → see CLAUDE.md
