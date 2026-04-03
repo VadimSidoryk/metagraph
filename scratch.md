@@ -1,18 +1,18 @@
 # scratch.md
 
-Буфер для быстрых заметок и фильтрованных сообщений из email/Slack.
+Buffer for quick notes and filtered messages from email/Slack.
 
-**Формат:**
+**Format:**
 ```
-YYYY-MM-DD HH:MM | [Встреча или —] | [email/slack/note] | Суть
+YYYY-MM-DD HH:MM | [Meeting or —] | [email/slack/note] | Summary
 ```
 
-**Маркеры обработки:**
-- `✅ → [[T1001]]` — создана нода в графе
-- `🗑️` — отклонено или auto-archived
+**Processing Markers:**
+- `✅ → [[T1001]]` — node created in graph
+- `🗑️` — rejected or auto-archived
 
-Обрабатывается процессом [[P1004]] каждое утро в 08:00.
-Пополняется процессом [[P1003]] каждый вечер в 18:00 и вручную в любое время.
+Processed by process [[P1004]] every morning at 08:00.
+Replenished by process [[P1003]] every evening at 18:00 and manually at any time.
 
 ---
 
