@@ -18,14 +18,35 @@ Agents follow the rules in [`CLAUDE.md`](CLAUDE.md) (also mirrored as [`.cursorr
 
 ---
 
+## How it works day-to-day
+
+The graph runs a **two-stage daily pipeline** that keeps your task list and knowledge base up to date with minimal manual effort:
+
+1. **18:00 — Capture** ([P1003](processes/P1003.md)): an agent scans your email and Slack, extracts only actionable items or new knowledge, and appends them to [`scratch.md`](scratch.md) (one line per item, with Google Calendar context).
+2. **08:00 — Triage** ([P1004](processes/P1004.md)): an agent reads `scratch.md`, classifies each entry using [`triage-rules.md`](triage-rules.md), and proposes graph nodes (tasks or knowledge). You confirm or edit — takes 3–5 minutes.
+
+On top of that:
+- **Weekly Monday** — [P1002](processes/P1002.md) reviews goal progress and flags anything at risk.
+- **Weekly Sunday** — [P1005](processes/P1005.md) runs a graph integrity check (broken links, orphaned nodes, stale entries).
+- **End of quarter** — [P1007](processes/P1007.md) handles OKR lifecycle: close expired goals, open next quarter's goals.
+
+You can also **add quick notes to `scratch.md` at any time** (on the go, by voice, by text) — the triage process will pick them up next morning.
+
+For a more detailed human-oriented guide, see [`MENTAL_MODEL.md`](MENTAL_MODEL.md).
+
+---
+
 ## Folder Structure
 
 ```
 metagraph/
 ├── CLAUDE.md               ← full rules for all AI agents
+├── MENTAL_MODEL.md         ← human guide: how to think about the system
 ├── .cursorrules            ← same rules, Cursor format
 ├── .windsurfrules          ← same rules, Windsurf format
 ├── INDEX.md                ← ID registry and counters
+├── scratch.md              ← capture buffer for quick notes & filtered messages
+├── triage-rules.md         ← auto-classification rules for P1004 triage
 │
 ├── context/                ← knowledge nodes (C-series IDs)
 │   ├── goal/               ← OKR-style goals (quarterly / half-year / annual)
@@ -68,7 +89,7 @@ Stored in `context/`. Each node is an atomic unit of knowledge.
 | `decision` | Decision log for a domain (health, career…) | `domain`, decision table |
 | `knowledge` | Reference knowledge from an external source | `source_type`, `source_ref`, `updated_at` |
 
-**Goal nodes** are the most connected — they link to tasks, processes, decisions, and knowledge.
+**Goal nodes** are the most connected — they link to tasks, processes, decisions, and knowledge. Process [[P1002]] periodically evaluates their progress.
 
 **Personal nodes** are intentionally sparse (1–2 links). They define interaction rules for working with a person and are read by any task or process involving that person. Their entire content is **private** — never output outside the graph.
 
@@ -99,6 +120,10 @@ Each process file contains: purpose, step-by-step protocol, scheduled triggers, 
 |---|---|---|
 | [P1001](processes/P1001.md) | Sync Remote Knowledge Nodes | Daily at 09:00 |
 | [P1002](processes/P1002.md) | Goal Progress Review | Weekly on Monday |
+| [P1003](processes/P1003.md) | Email & Slack Filter — Daily Scratch Writer | Daily at 18:00 |
+| [P1004](processes/P1004.md) | Scratch Triage — Daily Graph Writer | Daily at 08:00 |
+| [P1005](processes/P1005.md) | Graph Integrity Check | Weekly on Sunday at 20:00 |
+| [P1007](processes/P1007.md) | OKR Lifecycle — Horizon Graduation | Last week of each quarter |
 
 ### Templates
 
@@ -131,6 +156,21 @@ Links appear in:
 - Frontmatter lists: `context_refs: ["[[C1001]]"]`, `task_refs: ["[[T1002]]"]`
 - Table cells: decision log `Linked IDs` column
 - Inline prose: *"this task implements [[C1001|the Q2 growth goal]]"*
+
+---
+
+## Tag Taxonomy
+
+All entities use tags from a controlled vocabulary defined in [`CLAUDE.md`](CLAUDE.md) (section 13). Tags are grouped into dimensions:
+
+| Dimension | Examples | Purpose |
+|---|---|---|
+| **domain** | `work`, `health`, `finance`, `learning`, `personal` | Area of life/work |
+| **horizon** | `this-week`, `this-quarter`, `this-year`, `someday`, `recurring` | Time scale |
+| **type-hint** | `reference`, `insight`, `research`, `decision-context` | Kind of knowledge (knowledge nodes only) |
+| **source** | `from-email`, `from-slack`, `from-scratch`, `from-meeting` | Origin (knowledge & triage-created items) |
+
+Rules: max 3 tags per entity, one per dimension. No invented tags — update the taxonomy first.
 
 ---
 
@@ -193,9 +233,9 @@ Open this folder as an Obsidian vault. All `[[wikilinks]]` resolve automatically
 
 ### Scheduling processes
 
-To schedule a process (e.g. P1001 daily sync), use your agent's scheduling tool with this prompt:
+To schedule a process (e.g. P1003 daily email filter), use your agent's scheduling tool with this prompt:
 
-> *"Run process P1001 from the metagraph at `<path to this folder>`"*
+> *"Run process P1003 from the metagraph at `<path to this folder>`"*
 
 ---
 
@@ -203,8 +243,10 @@ To schedule a process (e.g. P1001 daily sync), use your agent's scheduling tool 
 
 **All entities:**
 ```yaml
-id, type, title, created, modified, status, assignee, tags
+id, type, title, summary, created, modified, status, assignee, tags
 ```
+
+`summary` — 1–2 sentences auto-generated by the agent at creation; allows scanning many nodes without reading full bodies.
 
 **Tasks additionally:**
 ```yaml
